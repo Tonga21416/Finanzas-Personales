@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mis Finanzas Personalizadas</title>
+
+    <!-- SDKs de Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-primary: #000000;
+            --bg-card: #1c1c1e;
+            --bg-input: #2c2c2e;
+            --accent-green: #30d158;
+            --accent-red: #ff453a;
+            --accent-blue: #0a84ff;
+            --accent-orange: #ff9f0a;
+            --accent-purple: #bf5af2;
+            --accent-teal: #64d2ff;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --border-color: #38383a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            padding-bottom: 90px;
+            padding-top: env(safe-area-inset-top);
+        }
+
+        .header {
+            padding: 16px;
+            background-color: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .summary-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        .summary-title {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-amount {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .progress-bar-bg {
+            background-color: var(--bg-input);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar-fill {
+            background-color: var(--accent-blue);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .card-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .card-grid-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .card-box {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .card-box.active {
+            border-color: var(--accent-blue);
+            background: rgba(10, 132, 255, 0.12);
+        }
+
+        .card-box-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .card-box-amount {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .item-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .item-name {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .item-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge-cuota, .badge-card, .badge-destino, .badge-consumo, .badge-payer-yo, .badge-payer-mimito, .badge-modificado, .badge-anulado {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-cuota { background: rgba(10, 132, 255, 0.2); color: var(--accent-blue); }
+        .badge-card { background: rgba(255, 159, 10, 0.2); color: var(--accent-orange); }
+        .badge-destino { background: rgba(191, 90, 242, 0.2); color: var(--accent-purple); }
+        .badge-consumo { background: rgba(100, 210, 255, 0.2); color: var(--accent-teal); }
+        .badge-payer-yo { background: rgba(48, 209, 88, 0.2); color: var(--accent-green); }
+        .badge-payer-mimito { background: rgba(255, 69, 58, 0.2); color: var(--accent-red); }
+        .badge-modificado { background: rgba(255, 159, 10, 0.2); color: var(--accent-orange); font-size: 10px; }
+        .badge-anulado { background: rgba(255, 69, 58, 0.2); color: var(--accent-red); font-size: 10px; }
+
+        .item-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 26px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--bg-input);
+            transition: .3s;
+            border-radius: 26px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px; width: 20px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--accent-green); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .btn-action {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-danger {
+            background: rgba(255, 69, 58, 0.15);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+
+        .form-group { margin-bottom: 12px; }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .form-group input, .form-group select, select.ios-select {
+            width: 100%;
+            padding: 12px;
+            background-color: #2c2c2e !important;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: #ffffff !important;
+            font-size: 15px;
+            font-weight: 500;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        select option {
+            background-color: #1c1c1e !important;
+            color: #ffffff !important;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(28, 28, 30, 0.95);
+            backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            border-top: 1px solid var(--border-color);
+            z-index: 50;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 9px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .tab-item.active { color: var(--accent-blue); }
+        .tab-icon { font-size: 18px; margin-bottom: 2px; }
+        .page { display: none; }
+        .page.active { display: block; }
+        
+        #sync-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(48, 209, 88, 0.2);
+            color: var(--accent-green);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PÁGINA 0: DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+        <div class="header">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <h1>Resumen General 📱</h1>
+                <span id="sync-status">🟢 Conectado</span>
+            </div>
+            <button class="btn-action" onclick="editarSueldoMes()" style="font-size:11px; padding:6px 10px;">💵 Sueldo: $<span id="dash-sueldo-txt">56.500</span></button>
+        </div>
+        <div class="container">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Seleccionar Mes a Evaluar / Proyectar:</label>
+                <select id="dash-month-select" class="ios-select month-dropdown-target" onchange="renderDashboard()">
+                </select>
+            </div>
+
+            <div class="summary-card" style="border-color: var(--accent-green);">
+                <div class="summary-title">Saldo Disponible del Mes (Ingresos - Egresos)</div>
+                <div class="summary-amount" id="dash-saldo-principal" style="color: var(--accent-green);">$0</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                    Sueldo + Cobro Mimito - (Fijos + Tarjetas + Variables + Consumo)
+                </div>
+            </div>
+
+            <div class="card-grid-4">
+                <div class="card-box" onclick="cambiarTab('tarjetas')">
+                    <div class="card-box-title">💳 Total Tarjetas</div>
+                    <div class="card-box-amount" id="dash-tarjetas-amount">$0</div>
+                </div>
+                <div class="card-box" onclick="cambiarTab('fijos')">
+                    <div class="card-box-title">📌 Gastos Fijos</div>
+                    <div class="card-box-amount" id="dash-fijos-amount">$0</div>
+                </div>
+                <div class="card-box" onclick="cambiarTab('variables')">
+                    <div class="card-box-title">🛒 Gastos Variables</div>
+                    <div class="card-box-amount" id="dash-var-amount">$0</div>
+                </div>
+                <div class="card-box" onclick="cambiarTab('mimito')">
+                    <div class="card-box-title">🐾 Balance Mimito</div>
+                    <div class="card-box-amount" id="dash-mimito-amount" style="color: var(--accent-green);">$0</div>
+                </div>
+            </div>
+
+            <div class="summary-card" style="border-color: var(--border-color); padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <span class="summary-title" style="margin:0; font-weight: 700;">Línea 1: Saldo</span>
+                    <span id="dash-linea-saldo" style="font-weight:700; font-size: 18px; color: var(--accent-green);">$0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="summary-title" style="margin:0; font-weight: 700;">Línea 2: Ahorro</span>
+                    <span id="dash-linea-ahorro" style="font-weight:700; font-size: 18px; color: var(--accent-purple);">$0</span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-action" style="flex:1; font-size: 12px;" onclick="exportarBackup()">📥 Descargar Respaldo</button>
+                <button class="btn-action" style="flex:1; font-size: 12px; background: var(--bg-input);" onclick="document.getElementById('import-file-input').click()">📤 Cargar Archivo JSON</button>
+                <input type="file" id="import-file-input" style="display: none;" accept=".json" onchange="importarBackup(event)">
+            </div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 1: GASTOS FIJOS -->
+    <div id="page-fijos" class="page">
+        <div class="header">
+            <h1>Gastos Fijos</h1>
+            <button class="btn-action" onclick="abrirModalNuevoFijo()">+ Nuevo</button>
+        </div>
+        <div class="container">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Mes de Control de Fijos:</label>
+                <select id="fijos-month-select" class="ios-select month-dropdown-target" onchange="renderGastosFijos()">
+                </select>
+            </div>
+            <div class="summary-card">
+                <div class="summary-title">Total Fijos Mensuales</div>
+                <div class="summary-amount" id="fijos-total-amount">$0</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="fijos-progress-fill"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                    <span id="fijos-paid-text">Pagado: $0</span>
+                    <span id="fijos-pending-text">Pendiente: $0</span>
+                </div>
+            </div>
+            <div id="fijos-list"></div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 2: GASTOS VARIABLES -->
+    <div id="page-variables" class="page">
+        <div class="header">
+            <h1>Planificaciones</h1>
+            <button class="btn-action" onclick="abrirModalNuevoVariable()">+ Planificar</button>
+        </div>
+        <div class="container">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Mes a Consultar / Proyectar:</label>
+                <select id="var-month-select" class="ios-select month-dropdown-target" onchange="renderVariables()">
+                </select>
+            </div>
+            <div class="summary-card">
+                <div class="summary-title">Carga Proyectada del Mes</div>
+                <div class="summary-amount" id="var-total-amount">$0</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="var-progress-fill"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                    <span id="var-paid-text">Concretado: $0</span>
+                    <span id="var-pending-text">Pendiente: $0</span>
+                </div>
+            </div>
+            <div id="variables-list"></div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 3: TARJETAS -->
+    <div id="page-tarjetas" class="page">
+        <div class="header">
+            <h1>Tarjetas</h1>
+            <button class="btn-action" onclick="abrirModalNuevaTarjetaCompra()">+ Nueva Compra</button>
+        </div>
+        <div class="container">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Mes del Estado de Cuenta:</label>
+                <select id="card-month-select" class="ios-select month-dropdown-target" onchange="renderTarjetas()">
+                </select>
+            </div>
+
+            <div class="summary-card" id="card-consolidated-box" onclick="filtrarPorTarjeta('Todas')" style="cursor: pointer;">
+                <div class="summary-title">Total Consolidado de Tarjetas</div>
+                <div class="summary-amount" id="card-total-amount">$0</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">Ver todas las tarjetas.</div>
+            </div>
+
+            <div class="card-grid-4">
+                <div class="card-box" id="filter-oca" onclick="filtrarPorTarjeta('OCA')"><div class="card-box-title">OCA</div><div class="card-box-amount" id="amount-card-oca">$0</div></div>
+                <div class="card-box" id="filter-bbva" onclick="filtrarPorTarjeta('BBVA')"><div class="card-box-title">BBVA</div><div class="card-box-amount" id="amount-card-bbva">$0</div></div>
+                <div class="card-box" id="filter-scotiabank" onclick="filtrarPorTarjeta('Scotiabank')"><div class="card-box-title">Scotiabank</div><div class="card-box-amount" id="amount-card-scotiabank">$0</div></div>
+                <div class="card-box" id="filter-passcard" onclick="filtrarPorTarjeta('Passcard')"><div class="card-box-title">Passcard</div><div class="card-box-amount" id="amount-card-passcard">$0</div></div>
+            </div>
+
+            <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--text-secondary);" id="tarjetas-mov-title">Movimientos (Todas)</h3>
+            <div id="tarjetas-list"></div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 4: MIMITO -->
+    <div id="page-mimito" class="page">
+        <div class="header">
+            <h1>Cuenta Mimito</h1>
+            <button class="btn-action" onclick="abrirModalNuevoMimito()">+ Nuevo Gasto</button>
+        </div>
+        <div class="container">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Mes de Liquidación:</label>
+                <select id="mimito-month-select" class="ios-select month-dropdown-target" onchange="renderMimito()">
+                </select>
+            </div>
+            <div class="summary-card" style="border-color: var(--accent-green);">
+                <div class="summary-title">BALANCE A LIQUIDAR (FIN DE MES)</div>
+                <div class="summary-amount" id="mimito-balance-amount" style="color: var(--accent-green);">$0</div>
+                <div style="font-size: 13px; color: var(--text-secondary);" id="mimito-balance-text">Calculando balance...</div>
+            </div>
+            <div class="card-grid-2">
+                <div class="card-box"><div class="card-box-title">Total GFM (Fijos)</div><div class="card-box-amount" id="mimito-gfm-total">$0</div></div>
+                <div class="card-box"><div class="card-box-title">Pagado por YO</div><div class="card-box-amount" id="mimito-paid-yo" style="color: var(--accent-green);">$0</div></div>
+                <div class="card-box" style="grid-column: span 2;"><div class="card-box-title">Pagado por MIMITO</div><div class="card-box-amount" id="mimito-paid-mimito" style="color: var(--accent-red);">$0</div></div>
+            </div>
+            <h3 style="font-size: 15px; margin-top: 10px; margin-bottom: 10px; color: var(--text-secondary);">1. Gastos Fijos Mimito (GFM)</h3>
+            <div id="gfm-list"></div>
+            <h3 style="font-size: 15px; margin-top: 20px; margin-bottom: 10px; color: var(--text-secondary);">2. Compras Compartidas</h3>
+            <div id="mimito-list"></div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 5: AHORRO -->
+    <div id="page-ahorro" class="page">
+        <div class="header">
+            <h1>Ahorro e Inversión</h1>
+            <button class="btn-action" onclick="abrirModalNuevoAhorro()">+ Nuevo Aporte</button>
+        </div>
+        <div class="container">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Filtrar por Mes / Periodo:</label>
+                <select id="ahorro-month-select" class="ios-select" onchange="renderAhorro()">
+                    <option value="TODOS">Todos los Tiempos</option>
+                </select>
+            </div>
+            <div class="summary-card" style="border-color: var(--accent-purple);">
+                <div class="summary-title">Total Ahorrado / Invertido</div>
+                <div class="summary-amount" id="ahorro-total-amount" style="color: var(--accent-purple);">$0</div>
+                <div style="font-size: 12px; color: var(--text-secondary);" id="ahorro-subtext">Suma total de aportes acumulados.</div>
+            </div>
+            <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--text-secondary);">Historial de Aportes</h3>
+            <div id="ahorro-list"></div>
+        </div>
+    </div>
+
+    <!-- PÁGINA 6: CONSUMO DEL MES -->
+    <div id="page-consumo" class="page">
+        <div class="header">
+            <h1>Consumo del Mes</h1>
+            <button class="btn-action" onclick="abrirModalNuevoConsumo()">+ Gasto Diario</button>
+        </div>
+        <div class="container">
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Mes de Consumo:</label>
+                <select id="consumo-month-select" class="ios-select month-dropdown-target" onchange="renderConsumo()">
+                </select>
+            </div>
+            <div class="summary-card" style="border-color: var(--accent-teal);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <div class="summary-title" style="margin:0;">Presupuesto de Bolsillo</div>
+                    <button class="btn-action" onclick="editarFijoConsumoMes()" style="padding: 4px 8px; font-size: 11px;">⚙️ Ajustar Fijo</button>
+                </div>
+                <div class="summary-amount" id="consumo-restante-amount" style="color: var(--accent-teal);">$0</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="consumo-progress-fill" style="background-color: var(--accent-teal);"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                    <span id="consumo-gastado-text">Gastado: $0</span>
+                    <span id="consumo-asignado-text">Fijo Mes: $10.000</span>
+                </div>
+            </div>
+            <h3 style="font-size: 15px; margin-bottom: 12px; color: var(--text-secondary);">Detalle de Gastos Diarios</h3>
+            <div id="consumo-list"></div>
+        </div>
+    </div>
+
+    <!-- TAB BAR INFERIOR -->
+    <div class="tab-bar">
+        <div class="tab-item active" onclick="cambiarTab('dashboard')"><span class="tab-icon">📊</span><span>Inicio</span></div>
+        <div class="tab-item" onclick="cambiarTab('fijos')"><span class="tab-icon">📌</span><span>Fijos</span></div>
+        <div class="tab-item" onclick="cambiarTab('variables')"><span class="tab-icon">🛒</span><span>Variables</span></div>
+        <div class="tab-item" onclick="cambiarTab('tarjetas')"><span class="tab-icon">💳</span><span>Tarjetas</span></div>
+        <div class="tab-item" onclick="cambiarTab('mimito')"><span class="tab-icon">🐾</span><span>Mimito</span></div>
+        <div class="tab-item" onclick="cambiarTab('ahorro')"><span class="tab-icon">🐖</span><span>Ahorro</span></div>
+        <div class="tab-item" onclick="cambiarTab('consumo')"><span class="tab-icon">☕</span><span>Consumo</span></div>
+    </div>
+
+    <!-- MODALES DE EDICIÓN -->
+    <div id="modal-fijo" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-fijo-title" style="margin-bottom: 12px;">Editar Gasto Fijo</h3>
+            <div class="form-group"><label>Concepto:</label><input type="text" id="edit-fijo-name"></div>
+            <div class="form-group"><label>Monto ($):</label><input type="number" id="edit-fijo-amount"></div>
+            <div class="form-group" id="fijo-scope-group" style="display:none;">
+                <label>Alcance del cambio:</label>
+                <select id="edit-fijo-scope">
+                    <option value="MES">Solo para el mes seleccionado</option>
+                    <option value="PERMANENTE">Permanente (Todos los meses)</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button class="btn-action btn-danger" id="btn-eliminar-fijo" style="flex: 1;" onclick="eliminarFijo()">🗑️ Eliminar</button>
+                <button class="btn-action" style="flex: 1;" onclick="cerrarModal('modal-fijo')">Cancelar</button>
+                <button class="btn-action" style="flex: 1; background: var(--accent-blue);" onclick="guardarFijo()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-gfm" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-gfm-title" style="margin-bottom: 12px;">Editar GFX Mimito</h3>
+            <div class="form-group"><label>Concepto:</label><input type="text" id="edit-gfm-name"></div>
+            <div class="form-group"><label>Monto ($):</label><input type="number" id="edit-gfm-amount"></div>
+            <div class="form-group" id="gfm-scope-group" style="display:none;">
+                <label>Alcance:</label>
+                <select id="edit-gfm-scope">
+                    <option value="MES">Solo este mes</option>
+                    <option value="PERMANENTE">Permanente</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button class="btn-action btn-danger" id="btn-eliminar-gfm" style="flex: 1;" onclick="eliminarGFM()">🗑️ Eliminar</button>
+                <button class="btn-action" style="flex: 1;" onclick="cerrarModal('modal-gfm')">Cancelar</button>
+                <button class="btn-action" style="flex: 1; background: var(--accent-blue);" onclick="guardarGFM()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-variable" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-var-title" style="margin-bottom: 12px;">Planificar Gasto Variable</h3>
+            <div class="form-group"><label>Descripción:</label><input type="text" id="var-name" placeholder="Ej: Pasajes"></div>
+            <div class="form-group"><label>Monto Total ($):</label><input type="number" id="var-amount" placeholder="0"></div>
+            <div class="form-group"><label>Mes de Inicio:</label><input type="month" id="var-start-month" value="2026-10"></div>
+            <div class="form-group"><label>Cuotas:</label><input type="number" id="var-cuotas" value="1" min="1" max="24"></div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button class="btn-action btn-danger" id="btn-eliminar-var" style="flex: 1;" onclick="eliminarVariable()">🗑️ Eliminar</button>
+                <button class="btn-action" style="flex: 1;" onclick="cerrarModal('modal-variable')">Cancelar</button>
+                <button class="btn-action" style="flex: 1; background: var(--accent-blue);" onclick="guardarVariable()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-tarjeta" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-card-title" style="margin-bottom: 12px;">Nueva Compra con Tarjeta</h3>
+            <div class="form-group"><label>Tarjeta:</label>
+                <select id="card-select"><option value="OCA">OCA</option><option value="BBVA">BBVA</option><option value="Scotiabank">Scotiabank</option><option value="Passcard">Passcard</option></select>
+            </div>
+            <div class="form-group"><label>Descripción:</label><input type="text" id="card-purchase-name" placeholder="Ej: Super"></div>
+            <div class="form-group"><label>Monto Total ($):</label><input type="number" id="card-purchase-amount" placeholder="0"></div>
+            <div class="form-group"><label>Mes Primera Cuota:</label><input type="month" id="card-start-month" value="2026-10"></div>
+            <div class="form-group"><label>Cuotas:</label><input type="number" id="card-cuotas" value="1" min="1" max="24"></div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button class="btn-action btn-danger" id="btn-eliminar-card" style="flex: 1;" onclick="eliminarCompraTarjeta()">🗑️ Eliminar</button>
+                <button class="btn-action" style="flex: 1;" onclick="cerrarModal('modal-tarjeta')">Cancelar</button>
+                <button class="btn-action" style="flex: 1; background: var(--accent-blue);" onclick="guardarCompraTarjeta()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-mimito" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-mimito-title" style="margin-bottom: 12px;">Nuevo Gasto Compartido</h3>
+            <div class="form-group"><label>Concepto:</label><input type="text" id="mimito-name" placeholder="Ej: Super"></div>
+            <div class="form-group"><label>Monto ($):</label><input type="number" id="mimito-amount" placeholder="0"></div>
+            <div class="form-group"><label>Pagado por:</label><select id="mimito-payer"><option value="YO">YO</option><option value="MIMITO">MIMITO</option></select></div>
+            <div class="form-group"><label>Mes:</label><input type="month" id="mimito-start-month" value="2026-10"></div>
+            <div class="form-group"><label>Cuotas:</label><input type="number" id="mimito-cuotas" value="1" min="1" max="24"></div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button class="btn-action btn-danger" id="btn-eliminar-mimito" style="flex: 1;" onclick="eliminarGastoMimito()">🗑️ Eliminar</button>
+                <button class="btn-action" style="flex: 1;" onclick="cerrarModal('modal-mimito')">Cancelar</button>
+                <button class="btn-action" style="flex: 1; background: var(--accent-blue);" onclick="guardarGastoMimito()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-ahorro" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-ahorro-title" style="margin-bottom: 12px;">Nuevo Aporte de Ahorro</h3>
+            <div class="form-group"><label>Motivo:</label><input type="text" id="ahorro-name" placeholder="Ej: Fondo Emergencia"></div>
+            <div class="form-group"><label>Monto ($):</label><input type="number" id="ahorro-amount" placeholder="0"></div>
+            <div class="form-group"><label>Fecha:</label><input type="date" id="ahorro-date" value="2026-10-28"></div>
+            <div class="form-group"><label>Destino:</label>
+                <select id="ahorro-destino"><option value="Itaú Fondo Liquidez">Itaú Fondo Liquidez</option><option value="S&P 500 / ETFs">S&P 500 / ETFs</option><option value="Caja de Ahorro">Caja de Ahorro</option></select>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button class="btn-action btn-danger" id="btn-eliminar-ahorro" style="flex: 1;" onclick="eliminarAhorro()">🗑️ Eliminar</button>
+                <button class="btn-action" style="flex: 1;" onclick="cerrarModal('modal-ahorro')">Cancelar</button>
+                <button class="btn-action" style="flex: 1; background: var(--accent-blue);" onclick="guardarAhorro()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-consumo" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-consumo-title" style="margin-bottom: 12px;">Registrar Consumo Diario</h3>
+            <div class="form-group"><label>Concepto:</label><input type="text" id="consumo-name" placeholder="Ej: Barbería"></div>
+            <div class="form-group"><label>Monto ($):</label><input type="number" id="consumo-amount" placeholder="0"></div>
+            <div class="form-group"><label>Fecha:</label><input type="date" id="consumo-date" value="2026-10-28"></div>
+            <div style="display: flex; gap: 8px; margin-top: 16px;">
+                <button class="btn-action btn-danger" id="btn-eliminar-consumo" style="flex: 1;" onclick="eliminarConsumo()">🗑️ Eliminar</button>
+                <button class="btn-action" style="flex: 1;" onclick="cerrarModal('modal-consumo')">Cancelar</button>
+                <button class="btn-action" style="flex: 1; background: var(--accent-blue);" onclick="guardarConsumo()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURACIÓN DE FIREBASE (TUS DATOS REALES)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBhNLKI8hn2SpyP31dL3Nu_8DdIGkzo9bc",
+            authDomain: "finanzas-personales-63008.firebaseapp.com",
+            databaseURL: "https://finanzas-personales-63008-default-rtdb.firebaseio.com",
+            projectId: "finanzas-personales-63008",
+            storageBucket: "finanzas-personales-63008.firebasestorage.app",
+            messagingSenderId: "638196856429",
+            appId: "1:638196856429:web:44952f5b739224f5bb3164"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const MESES_LISTA = [
+            { val: '2026-10', name: 'Octubre 2026 (Actual)' },
+            { val: '2026-11', name: 'Noviembre 2026' },
+            { val: '2026-12', name: 'Diciembre 2026' },
+            { val: '2027-01', name: 'Enero 2027' },
+            { val: '2027-02', name: 'Febrero 2027' },
+            { val: '2027-03', name: 'Marzo 2027' },
+            { val: '2027-04', name: 'Abril 2027' },
+            { val: '2027-05', name: 'Mayo 2027' },
+            { val: '2027-06', name: 'Junio 2027' },
+            { val: '2027-07', name: 'Julio 2027' },
+            { val: '2027-08', name: 'Agosto 2027' },
+            { val: '2027-09', name: 'Septiembre 2027' },
+            { val: '2027-10', name: 'Octubre 2027' },
+            { val: '2027-11', name: 'Noviembre 2027' },
+            { val: '2027-12', name: 'Diciembre 2027' }
+        ];
+
+        // BASE DE DATOS INICIAL CON TU INFORMACIÓN COMPLETA
+        let DEFAULT_DATA = {
+          "sueldosMensuales": { "2026-10": 56500 },
+          "gastosFijos": [
+            { "id": 1, "name": "Alquiler", "amount": 19000 },
+            { "id": 3, "name": "OSE", "amount": 700 },
+            { "id": 4, "name": "Celular", "amount": 1510 },
+            { "id": 5, "name": "Internet", "amount": 2000 },
+            { "id": 6, "name": "BSE", "amount": 2500 },
+            { "id": 7, "name": "Auto", "amount": 12000 },
+            { "id": 8, "name": "Patente", "amount": 1000 },
+            { "id": 1793211368570, "name": "UTE", "amount": 4000 }
+          ],
+          "overridesFijos": {
+            "2026-10-4": 1510, "2026-11-8": 0, "2026-12-8": 4000, "2026-12-6": 2800, "2026-12-3": 700, "2026-12-1793211368570": 4000, "2026-12-7": 12000, "2027-01-1793211368570": 5000, "2027-01-3": 750, "2027-01-6": 2800, "2027-01-7": 12500, "2027-01-8": 1750, "2027-02-3": 750, "2027-02-6": 2800, "2027-02-7": 12500, "2027-02-8": 2000, "2027-02-1793211368570": 5000, "2027-03-3": 750, "2027-03-6": 2800, "2027-03-7": 12500, "2027-03-8": 2000, "2027-03-1793211368570": 5000, "2027-04-3": 750, "2027-04-6": 2800, "2027-04-7": 12500, "2027-04-8": 2000, "2027-04-1793211368570": 5000, "2027-05-3": 750, "2027-05-6": 2800, "2027-05-7": 12500, "2027-05-8": 2000, "2027-05-1793211368570": 5000, "2027-06-3": 750, "2027-06-6": 2800, "2027-06-7": 12500, "2027-06-8": 2000, "2027-06-1793211368570": 5000, "2027-07-1": 19000, "2027-07-3": 750, "2027-07-6": 2800, "2027-07-7": 12500, "2027-07-8": 2000, "2027-07-1793211368570": 5000, "2027-08-3": 750, "2027-08-6": 2800, "2027-08-7": 12500, "2027-08-8": 2000, "2027-08-1793211368570": 5000, "2027-09-3": 750, "2027-09-6": 2800, "2027-09-7": 12500, "2027-09-8": 2000, "2027-09-1793211368570": 5000, "2027-09-1": 19800, "2027-10-1": 19800, "2027-10-3": 750, "2027-10-5": 2000, "2027-10-6": 2800, "2027-10-7": 12500, "2027-10-8": 2000, "2027-10-1793211368570": 5000, "2027-11-1": 19800, "2027-11-3": 750, "2027-11-6": 2800, "2027-11-7": 12500, "2027-11-8": 2000, "2027-11-1793211368570": 5000, "2027-12-1": 19800, "2027-12-3": 750, "2027-12-6": 2800, "2027-12-7": 12500, "2027-12-8": 2000, "2027-12-1793211368570": 5000
+          },
+          "estadoPagosFijos": { "2026-10-4": false },
+          "gastosFijosMimito": [
+            { "id": 301, "name": "UTE", "amount": 2000 },
+            { "id": 302, "name": "BSE", "amount": 1250 },
+            { "id": 303, "name": "ALQUILER", "amount": 9400 },
+            { "id": 304, "name": "OSE", "amount": 350 },
+            { "id": 305, "name": "INTERNET", "amount": 950 },
+            { "id": 306, "name": "PATENTE", "amount": 1000 },
+            { "id": 307, "name": "AUTO", "amount": 6000 }
+          ],
+          "overridesGFM": {
+            "2026-10-301": 2000, "2026-11-306": 0, "2026-12-306": 2000, "2027-01-301": 2500, "2027-01-302": 1400, "2027-01-303": 9500, "2027-01-305": 1000, "2027-01-307": 6250, "2027-02-301": 2500, "2027-02-302": 1400, "2027-02-303": 9500, "2027-02-305": 1000, "2027-02-307": 6250, "2027-03-301": 2500, "2027-03-302": 1400, "2027-03-303": 9500, "2027-03-305": 1000, "2027-03-307": 6250, "2027-04-301": 2500, "2027-04-302": 1400, "2027-04-303": 9500, "2027-04-305": 1000, "2027-04-307": 6250, "2027-05-301": 2500, "2027-05-302": 1400, "2027-05-303": 9500, "2027-05-305": 1000, "2027-05-306": 1000, "2027-05-307": 6250, "2027-06-301": 2500, "2027-06-302": 1400, "2027-06-303": 9500, "2027-06-305": 1000, "2027-06-307": 6250, "2027-07-301": 2500, "2027-07-302": 1400, "2027-07-303": 9500, "2027-07-305": 1000, "2027-07-307": 6250, "2027-08-301": 2500, "2027-08-302": 1400, "2027-08-303": 9500, "2027-08-305": 1000, "2027-08-307": 6250, "2027-09-301": 2500, "2027-09-302": 1400, "2027-09-303": 9900, "2027-09-305": 1000, "2027-09-307": 6250, "2027-10-301": 2500, "2027-10-302": 1400, "2027-10-303": 9900, "2027-10-304": 350, "2027-10-305": 1000, "2027-10-307": 6250, "2027-11-301": 2500, "2027-11-302": 1400, "2027-11-303": 9900, "2027-11-305": 1000, "2027-11-306": 1000, "2027-11-307": 6250, "2027-12-301": 2500, "2027-12-302": 1400, "2027-12-303": 9900, "2027-12-305": 1000, "2027-12-307": 6250
+          },
+          "gastosVariables": [
+            { "id": 101, "name": "COMIDA TATA", "totalAmount": 2600, "startMonth": "2026-11", "cuotas": 1, "paidMonths": [] },
+            { "id": 1792613028957, "name": "COLOMBIA", "totalAmount": 33000, "startMonth": "2026-12", "cuotas": 6, "paidMonths": [] },
+            { "id": 1792613050540, "name": "AIRBNB ARGENTINA", "totalAmount": 2500, "startMonth": "2026-12", "cuotas": 1, "paidMonths": [] },
+            { "id": 1792613061261, "name": "DEVOLUCION AH", "totalAmount": 2500, "startMonth": "2026-12", "cuotas": 1, "paidMonths": [] },
+            { "id": 1793211808538, "name": "ANALISTA DATOS", "totalAmount": 42000, "startMonth": "2027-02", "cuotas": 10, "paidMonths": [] }
+          ],
+          "comprasTarjetas": [
+            { "id": 1792610486506, "card": "OCA", "name": "GIMNASIO", "totalAmount": 3200, "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792610542361, "card": "OCA", "name": "AIRE ACONDICIONADO", "totalAmount": 1116, "startMonth": "2026-11", "cuotas": 3 },
+            { "id": 1792610565473, "card": "OCA", "name": "VETERINARIA", "totalAmount": 860, "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792610596722, "card": "OCA", "name": "GARRAFA", "totalAmount": 2562, "startMonth": "2026-11", "cuotas": 6 },
+            { "id": 1792610613769, "card": "OCA", "name": "TRIGO REY", "totalAmount": 667, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792610625249, "card": "OCA", "name": "TORNEO PADEL", "totalAmount": 1800, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792610635234, "card": "OCA", "name": "GRANJA DEL EMP", "totalAmount": 275, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792610643402, "card": "OCA", "name": "BOLETOS STM", "totalAmount": 500, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792610650345, "card": "OCA", "name": "ALMUERZO", "totalAmount": 300, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611175273, "card": "BBVA", "name": "GEANT", "totalAmount": 476, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611207537, "card": "BBVA", "name": "LIBRO FINANZAS", "totalAmount": 276, "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611241034, "card": "BBVA", "name": "COSTO /T", "totalAmount": 2520, "startMonth": "2026-11", "cuotas": 9 },
+            { "id": 1792611266874, "card": "BBVA", "name": "T/C", "totalAmount": 1440, "startMonth": "2026-11", "cuotas": 4 },
+            { "id": 1792611297162, "card": "BBVA", "name": "MOUSE GEANT", "totalAmount": 1414, "startMonth": "2026-11", "cuotas": 7 },
+            { "id": 1792611327362, "card": "BBVA", "name": "THOT COOLER", "totalAmount": 750, "startMonth": "2026-11", "cuotas": 5 },
+            { "id": 1792611380689, "card": "BBVA", "name": "MICRONDAS", "totalAmount": 504, "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611410649, "card": "Scotiabank", "name": "BANDEJAS NAMMI", "totalAmount": 3600, "startMonth": "2026-11", "cuotas": 4 },
+            { "id": 1792611425978, "card": "Scotiabank", "name": "REGALO PAULI", "totalAmount": 1100, "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611450017, "card": "Scotiabank", "name": "SABANAS TIENDA MVD", "totalAmount": 1800, "startMonth": "2026-11", "cuotas": 4 },
+            { "id": 1792611473209, "card": "Scotiabank", "name": "REGALO SANTI", "totalAmount": 1686, "startMonth": "2026-11", "cuotas": 3 },
+            { "id": 1792611486410, "card": "Scotiabank", "name": "REMERA SELENIN", "totalAmount": 420, "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611496922, "card": "Scotiabank", "name": "TIJERA PODAR", "totalAmount": 387, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611510074, "card": "Scotiabank", "name": "COMIDA VIVI", "totalAmount": 4640, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611517825, "card": "Scotiabank", "name": "PEAJE", "totalAmount": 500, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611537241, "card": "Scotiabank", "name": "GRANJA", "totalAmount": 600, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611557890, "card": "Scotiabank", "name": "RESERVA TERMAS", "totalAmount": 5025, "startMonth": "2026-11", "cuotas": 3 },
+            { "id": 1792611579506, "card": "Scotiabank", "name": "FLORES AMARILLAS", "totalAmount": 1509, "startMonth": "2026-11", "cuotas": 3 },
+            { "id": 1792611598898, "card": "Scotiabank", "name": "RENNER", "totalAmount": 3000, "startMonth": "2026-11", "cuotas": 5 },
+            { "id": 1792611611362, "card": "Scotiabank", "name": "DIA DE LA MADRE", "totalAmount": 715, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611619642, "card": "Scotiabank", "name": "ANTEL ARENA", "totalAmount": 1200, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611640178, "card": "Scotiabank", "name": "SILLA GAMER", "totalAmount": 1380, "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611654417, "card": "Passcard", "name": "DIRECT GO", "totalAmount": 2520, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611674610, "card": "Passcard", "name": "CHAPA AUTO", "totalAmount": 3400, "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611686209, "card": "Passcard", "name": "BOLETOS STM", "totalAmount": 500, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611704290, "card": "Passcard", "name": "BOLETOS STM", "totalAmount": 1000, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611713315, "card": "Passcard", "name": "RENNER", "totalAmount": 577, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1793210666393, "card": "OCA", "name": "CARGAS TERMAS", "totalAmount": 2300, "startMonth": "2026-12", "cuotas": 1 },
+            { "id": 1793210683288, "card": "OCA", "name": "24 HS", "totalAmount": 210, "startMonth": "2026-12", "cuotas": 1 },
+            { "id": 1793210725201, "card": "Scotiabank", "name": "PEAJE TERMAS", "totalAmount": 1050, "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1793210804049, "card": "BBVA", "name": "CALEFON", "totalAmount": 6230, "startMonth": "2026-11", "cuotas": 10 },
+            { "id": 1793210841849, "card": "Passcard", "name": "REGALO VIVI", "totalAmount": 3000, "startMonth": "2026-11", "cuotas": 5 },
+            { "id": 1793210884994, "card": "Scotiabank", "name": "REGALO VIVI", "totalAmount": 1600, "startMonth": "2026-11", "cuotas": 4 },
+            { "id": 1793211190258, "card": "OCA", "name": "VETERINARIA", "totalAmount": 6000, "startMonth": "2027-01", "cuotas": 12 },
+            { "id": 1793211217314, "card": "OCA", "name": "GIMNASIO", "totalAmount": 16800, "startMonth": "2027-01", "cuotas": 12 },
+            { "id": 1793211300346, "card": "BBVA", "name": "LIBRO FINANZAS", "totalAmount": 138, "startMonth": "2027-01", "cuotas": 1 }
+          ],
+          "gastosMimito": [
+            { "id": 1792611827674, "name": "NETFLIX", "totalAmount": 800, "payer": "MIMITO", "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611838378, "name": "HERRAMIENTAS", "totalAmount": 260, "payer": "MIMITO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611856210, "name": "G MARKET", "totalAmount": 250, "payer": "MIMITO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611865793, "name": "LIBRO MAMA", "totalAmount": 150, "payer": "MIMITO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611893809, "name": "AIRE ACONDICIONADO", "totalAmount": 558, "payer": "YO", "startMonth": "2026-11", "cuotas": 3 },
+            { "id": 1792611904666, "name": "BOLETOS STM", "totalAmount": 500, "payer": "YO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611913346, "name": "BOLETOS STM", "totalAmount": 500, "payer": "YO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611933042, "name": "REGALO SANTI", "totalAmount": 843, "payer": "YO", "startMonth": "2026-11", "cuotas": 3 },
+            { "id": 1792611943266, "name": "BOLETOS STM", "totalAmount": 1000, "payer": "YO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792611965283, "name": "INDIAN CAMISA MAMA", "totalAmount": 500, "payer": "MIMITO", "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611978066, "name": "COMIDA FLORESTA", "totalAmount": 2320, "payer": "YO", "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792611996962, "name": "CHAPA AUTO", "totalAmount": 1700, "payer": "YO", "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792612039626, "name": "PISOS SANTINO HOME", "totalAmount": 3500, "payer": "MIMITO", "startMonth": "2026-11", "cuotas": 5 },
+            { "id": 1792612061619, "name": "COMIDA TIMO", "totalAmount": 1500, "payer": "MIMITO", "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792612073746, "name": "BOLETOS STM", "totalAmount": 500, "payer": "YO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792612091715, "name": "COLONIA EXPRESS", "totalAmount": 1284, "payer": "YO", "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792612103314, "name": "GEANT", "totalAmount": 238, "payer": "YO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792612124338, "name": "ANTEL ARENA", "totalAmount": 1200, "payer": "YO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792612172739, "name": "BANDEJAS NAMMI", "totalAmount": 1800, "payer": "YO", "startMonth": "2026-11", "cuotas": 4 },
+            { "id": 1792612207171, "name": "GARRAFA", "totalAmount": 1498, "payer": "YO", "startMonth": "2026-11", "cuotas": 7 },
+            { "id": 1792612287900, "name": "BOLSA TIMO", "totalAmount": 209, "payer": "MIMITO", "startMonth": "2026-11", "cuotas": 1 },
+            { "id": 1792612376124, "name": "MICRONDAS", "totalAmount": 254, "payer": "YO", "startMonth": "2026-11", "cuotas": 2 },
+            { "id": 1792612879452, "name": "NETFLIX 27", "totalAmount": 4800, "payer": "MIMITO", "startMonth": "2027-01", "cuotas": 12 }
+          ],
+          "registrosAhorro": [],
+          "fondosConsumoMensuales": {
+            "2026-10": 10000, "2026-11": 10000, "2026-12": 10000, "2027-01": 10000, "2027-02": 10000, "2027-03": 10000, "2027-04": 10000, "2027-05": 10000, "2027-06": 10000, "2027-07": 10000, "2027-08": 10000, "2027-09": 10000, "2027-10": 10000, "2027-11": 10000, "2027-12": 10000
+          },
+          "registrosConsumo": []
+        };
+
+        // Variables de la aplicación
+        let sueldosMensuales = {};
+        let gastosFijos = [];
+        let overridesFijos = {};
+        let estadoPagosFijos = {};
+        let gastosFijosMimito = [];
+        let overridesGFM = {};
+        let gastosVariables = [];
+        let comprasTarjetas = [];
+        let gastosMimito = [];
+        let registrosAhorro = [];
+        let fondosConsumoMensuales = {};
+        let registrosConsumo = [];
+
+        let fijoEditandoId = null;
+        let gfmEditandoId = null;
+        let varEditandoId = null;
+        let cardEditandoId = null;
+        let mimitoEditandoId = null;
+        let ahorroEditandoId = null;
+        let consumoEditandoId = null;
+        let tarjetaFiltroSeleccionada = 'Todas';
+
+        // SINCRONIZACIÓN AUTOMÁTICA CON FIREBASE
+        function inicializarDatos() {
+            const dbRef = db.ref('finanzas_usuario');
+            
+            dbRef.on('value', (snapshot) => {
+                const serverData = snapshot.val();
+                if (serverData) {
+                    sueldosMensuales = serverData.sueldosMensuales || {};
+                    gastosFijos = serverData.gastosFijos || [];
+                    overridesFijos = serverData.overridesFijos || {};
+                    estadoPagosFijos = serverData.estadoPagosFijos || {};
+                    gastosFijosMimito = serverData.gastosFijosMimito || [];
+                    overridesGFM = serverData.overridesGFM || {};
+                    gastosVariables = serverData.gastosVariables || [];
+                    comprasTarjetas = serverData.comprasTarjetas || [];
+                    gastosMimito = serverData.gastosMimito || [];
+                    registrosAhorro = serverData.registrosAhorro || [];
+                    fondosConsumoMensuales = serverData.fondosConsumoMensuales || {};
+                    registrosConsumo = serverData.registrosConsumo || [];
+                    document.getElementById('sync-status').innerText = "🟢 Sincronizado";
+                } else {
+                    dbRef.set(DEFAULT_DATA);
+                    sueldosMensuales = DEFAULT_DATA.sueldosMensuales;
+                    gastosFijos = DEFAULT_DATA.gastosFijos;
+                    overridesFijos = DEFAULT_DATA.overridesFijos;
+                    estadoPagosFijos = DEFAULT_DATA.estadoPagosFijos;
+                    gastosFijosMimito = DEFAULT_DATA.gastosFijosMimito;
+                    overridesGFM = DEFAULT_DATA.overridesGFM;
+                    gastosVariables = DEFAULT_DATA.gastosVariables;
+                    comprasTarjetas = DEFAULT_DATA.comprasTarjetas;
+                    gastosMimito = DEFAULT_DATA.gastosMimito;
+                    registrosAhorro = DEFAULT_DATA.registrosAhorro;
+                    fondosConsumoMensuales = DEFAULT_DATA.fondosConsumoMensuales;
+                    registrosConsumo = DEFAULT_DATA.registrosConsumo;
+                }
+                renderDashboard();
+            }, (error) => {
+                document.getElementById('sync-status').innerText = "🔴 Offline";
+                document.getElementById('sync-status').style.background = "rgba(255, 69, 58, 0.2)";
+                document.getElementById('sync-status').style.color = "var(--accent-red)";
+            });
+        }
+
+        function guardarCambiosLocales() {
+            const dataToSave = {
+                sueldosMensuales, gastosFijos, overridesFijos, estadoPagosFijos,
+                gastosFijosMimito, overridesGFM, gastosVariables, comprasTarjetas,
+                gastosMimito, registrosAhorro, fondosConsumoMensuales, registrosConsumo
+            };
+            db.ref('finanzas_usuario').set(dataToSave)
+              .then(() => {
+                  document.getElementById('sync-status').innerText = "🟢 Sincronizado";
+              })
+              .catch(() => {
+                  document.getElementById('sync-status').innerText = "🟡 Guardando...";
+              });
+        }
+
+        function inicializarDropdownsMeses() {
+            document.querySelectorAll('.month-dropdown-target').forEach(select => {
+                select.innerHTML = '';
+                MESES_LISTA.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.val;
+                    opt.innerText = m.name;
+                    select.appendChild(opt);
+                });
+            });
+
+            const ahorroSelect = document.getElementById('ahorro-month-select');
+            if (ahorroSelect) {
+                ahorroSelect.innerHTML = '<option value="TODOS">Todos los Tiempos</option>';
+                MESES_LISTA.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.val;
+                    opt.innerText = m.name.replace(' (Actual)', '');
+                    ahorroSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function cambiarTab(tabName) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            
+            if (tabName === 'dashboard') {
+                document.getElementById('page-dashboard').classList.add('active');
+                document.querySelectorAll('.tab-item')[0].classList.add('active');
+                renderDashboard();
+            } else if (tabName === 'fijos') {
+                document.getElementById('page-fijos').classList.add('active');
+                document.querySelectorAll('.tab-item')[1].classList.add('active');
+                renderGastosFijos();
+            } else if (tabName === 'variables') {
+                document.getElementById('page-variables').classList.add('active');
+                document.querySelectorAll('.tab-item')[2].classList.add('active');
+                renderVariables();
+            } else if (tabName === 'tarjetas') {
+                document.getElementById('page-tarjetas').classList.add('active');
+                document.querySelectorAll('.tab-item')[3].classList.add('active');
+                renderTarjetas();
+            } else if (tabName === 'mimito') {
+                document.getElementById('page-mimito').classList.add('active');
+                document.querySelectorAll('.tab-item')[4].classList.add('active');
+                renderMimito();
+            } else if (tabName === 'ahorro') {
+                document.getElementById('page-ahorro').classList.add('active');
+                document.querySelectorAll('.tab-item')[5].classList.add('active');
+                renderAhorro();
+            } else if (tabName === 'consumo') {
+                document.getElementById('page-consumo').classList.add('active');
+                document.querySelectorAll('.tab-item')[6].classList.add('active');
+                renderConsumo();
+            }
+        }
+
+        function getMontoFijoEnMes(fijoId, month) {
+            const key = `${month}-${fijoId}`;
+            if (overridesFijos[key] !== undefined) return overridesFijos[key];
+            const base = gastosFijos.find(g => g.id === fijoId);
+            return base ? base.amount : 0;
+        }
+
+        function getMontoGFMEnMes(gfmId, month) {
+            const key = `${month}-${gfmId}`;
+            if (overridesGFM[key] !== undefined) return overridesGFM[key];
+            const base = gastosFijosMimito.find(g => g.id === gfmId);
+            return base ? base.amount : 0;
+        }
+
+        function renderDashboard() {
+            const selectedMonth = document.getElementById('dash-month-select').value || '2026-10';
+            const sueldoMes = sueldosMensuales[selectedMonth] !== undefined ? sueldosMensuales[selectedMonth] : 56500;
+            document.getElementById('dash-sueldo-txt').innerText = sueldoMes.toLocaleString('es-UY');
+
+            let totalTarjetas = 0;
+            comprasTarjetas.forEach(item => {
+                const [sYear, sMonth] = item.startMonth.split('-').map(Number);
+                const [qYear, qMonth] = selectedMonth.split('-').map(Number);
+                const diffMonths = (qYear - sYear) * 12 + (qMonth - sMonth);
+                if (diffMonths >= 0 && diffMonths < item.cuotas) {
+                    totalTarjetas += (item.totalAmount / item.cuotas);
+                }
+            });
+
+            let totalFijos = 0;
+            gastosFijos.forEach(f => {
+                totalFijos += getMontoFijoEnMes(f.id, selectedMonth);
+            });
+
+            let totalVar = 0;
+            gastosVariables.forEach(item => {
+                const [sYear, sMonth] = item.startMonth.split('-').map(Number);
+                const [qYear, qMonth] = selectedMonth.split('-').map(Number);
+                const diffMonths = (qYear - sYear) * 12 + (qMonth - sMonth);
+                if (diffMonths >= 0 && diffMonths < item.cuotas) {
+                    totalVar += (item.totalAmount / item.cuotas);
+                }
+            });
+
+            let totalGFM = 0;
+            gastosFijosMimito.forEach(g => {
+                totalGFM += getMontoGFMEnMes(g.id, selectedMonth);
+            });
+
+            let pagadoPorYo = 0, pagadoPorMimito = 0;
+            gastosMimito.forEach(item => {
+                const [sYear, sMonth] = item.startMonth.split('-').map(Number);
+                const [qYear, qMonth] = selectedMonth.split('-').map(Number);
+                const diffMonths = (qYear - sYear) * 12 + (qMonth - sMonth);
+                if (diffMonths >= 0 && diffMonths < item.cuotas) {
+                    const cuota = item.totalAmount / item.cuotas;
+                    if (item.payer === 'YO') pagadoPorYo += cuota;
+                    else pagadoPorMimito += cuota;
+                }
+            });
+            const balanceMimito = totalGFM + pagadoPorYo - pagadoPorMimito;
+
+            const consumoFijoMes = fondosConsumoMensuales[selectedMonth] !== undefined ? fondosConsumoMensuales[selectedMonth] : 10000;
+
+            let totalAhorroMes = 0;
+            registrosAhorro.forEach(a => {
+                if (a.date && a.date.substring(0, 7) === selectedMonth) totalAhorroMes += a.amount;
+            });
+
+            const cobroMimitoEfectivo = balanceMimito > 0 ? balanceMimito : 0;
+            const ingresosTotales = sueldoMes + cobroMimitoEfectivo;
+            const egresosTotales = totalFijos + totalTarjetas + totalVar + consumoFijoMes;
+            const saldoFinal = ingresosTotales - egresosTotales;
+
+            const saldoPrincipalEl = document.getElementById('dash-saldo-principal');
+            saldoPrincipalEl.innerText = `$${saldoFinal.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            if (saldoFinal >= 0) saldoPrincipalEl.style.color = 'var(--accent-green)';
+            else saldoPrincipalEl.style.color = 'var(--accent-red)';
+
+            document.getElementById('dash-tarjetas-amount').innerText = `$${totalTarjetas.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('dash-fijos-amount').innerText = `$${totalFijos.toLocaleString('es-UY')}`;
+            document.getElementById('dash-var-amount').innerText = `$${totalVar.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            
+            const dashMimitoEl = document.getElementById('dash-mimito-amount');
+            dashMimitoEl.innerText = `$${balanceMimito.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            if (balanceMimito >= 0) dashMimitoEl.style.color = 'var(--accent-green)';
+            else dashMimitoEl.style.color = 'var(--accent-red)';
+
+            const lineaSaldoEl = document.getElementById('dash-linea-saldo');
+            lineaSaldoEl.innerText = `$${saldoFinal.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            if (saldoFinal >= 0) lineaSaldoEl.style.color = 'var(--accent-green)';
+            else lineaSaldoEl.style.color = 'var(--accent-red)';
+
+            document.getElementById('dash-linea-ahorro').innerText = `$${totalAhorroMes.toLocaleString('es-UY')}`;
+        }
+
+        function editarSueldoMes() {
+            const selectedMonth = document.getElementById('dash-month-select').value || '2026-10';
+            const sueldoActual = sueldosMensuales[selectedMonth] !== undefined ? sueldosMensuales[selectedMonth] : 56500;
+            const nuevoSueldo = prompt(`Ingresa tu sueldo cobrado para ${selectedMonth} ($):`, sueldoActual);
+            if (nuevoSueldo !== null && !isNaN(nuevoSueldo) && nuevoSueldo !== "") {
+                sueldosMensuales[selectedMonth] = parseFloat(nuevoSueldo);
+                guardarCambiosLocales();
+                renderDashboard();
+            }
+        }
+
+        function renderGastosFijos() {
+            const selectedMonth = document.getElementById('fijos-month-select').value || '2026-10';
+            const list = document.getElementById('fijos-list');
+            list.innerHTML = '';
+            let total = 0, pagado = 0;
+
+            gastosFijos.forEach(item => {
+                const montoActual = getMontoFijoEnMes(item.id, selectedMonth);
+                const keyOverride = `${selectedMonth}-${item.id}`;
+                const hasOverride = overridesFijos[keyOverride] !== undefined;
+                const isAnulado = hasOverride && overridesFijos[keyOverride] === 0;
+
+                total += montoActual;
+                const keyPago = `${selectedMonth}-${item.id}`;
+                const isPaid = !!estadoPagosFijos[keyPago];
+                if (isPaid) pagado += montoActual;
+
+                let badgeHtml = '';
+                if (isAnulado) badgeHtml = '<span class="badge-anulado">Anulado este mes</span>';
+                else if (hasOverride) badgeHtml = '<span class="badge-modificado">Modificado este mes</span>';
+
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                if (isAnulado) card.style.opacity = '0.6';
+
+                card.innerHTML = `
+                    <div class="item-info">
+                        <span class="item-name" style="${isAnulado ? 'text-decoration: line-through;' : ''}">${item.name}</span>
+                        <span class="item-sub">$${montoActual.toLocaleString('es-UY')} ${badgeHtml}</span>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-action" onclick="abrirModalEditarFijo(${item.id})">✏️</button>
+                        <label class="switch"><input type="checkbox" ${isPaid ? 'checked' : ''} onchange="togglePagoFijo(${item.id}, '${selectedMonth}')"><span class="slider"></span></label>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+            document.getElementById('fijos-total-amount').innerText = `$${total.toLocaleString('es-UY')}`;
+            document.getElementById('fijos-paid-text').innerText = `Pagado: $${pagado.toLocaleString('es-UY')}`;
+            document.getElementById('fijos-pending-text').innerText = `Pendiente: $${(total - pagado).toLocaleString('es-UY')}`;
+            document.getElementById('fijos-progress-fill').style.width = `${total > 0 ? (pagado/total)*100 : 0}%`;
+        }
+
+        function togglePagoFijo(id, month) {
+            const key = `${month}-${id}`;
+            estadoPagosFijos[key] = !estadoPagosFijos[key];
+            guardarCambiosLocales();
+            renderGastosFijos();
+        }
+
+        function abrirModalEditarFijo(id) {
+            fijoEditandoId = id;
+            const selectedMonth = document.getElementById('fijos-month-select').value || '2026-10';
+            const item = gastosFijos.find(g => g.id === id);
+            const montoActual = getMontoFijoEnMes(id, selectedMonth);
+
+            document.getElementById('modal-fijo-title').innerText = 'Editar Gasto Fijo';
+            document.getElementById('edit-fijo-name').value = item.name;
+            document.getElementById('edit-fijo-amount').value = montoActual;
+            document.getElementById('fijo-scope-group').style.display = 'block';
+            document.getElementById('btn-eliminar-fijo').style.display = 'block';
+            document.getElementById('modal-fijo').style.display = 'flex';
+        }
+
+        function abrirModalNuevoFijo() {
+            fijoEditandoId = null;
+            document.getElementById('modal-fijo-title').innerText = 'Nuevo Gasto Fijo Base';
+            document.getElementById('edit-fijo-name').value = '';
+            document.getElementById('edit-fijo-amount').value = '';
+            document.getElementById('fijo-scope-group').style.display = 'none';
+            document.getElementById('btn-eliminar-fijo').style.display = 'none';
+            document.getElementById('modal-fijo').style.display = 'flex';
+        }
+
+        function guardarFijo() {
+            const name = document.getElementById('edit-fijo-name').value.trim();
+            const amount = parseFloat(document.getElementById('edit-fijo-amount').value);
+            const selectedMonth = document.getElementById('fijos-month-select').value || '2026-10';
+            if (!name || isNaN(amount)) return;
+
+            if (fijoEditandoId) {
+                const scope = document.getElementById('edit-fijo-scope').value;
+                if (scope === 'MES') {
+                    const key = `${selectedMonth}-${fijoEditandoId}`;
+                    overridesFijos[key] = amount;
+                } else {
+                    const item = gastosFijos.find(g => g.id === fijoEditandoId);
+                    item.name = name; item.amount = amount;
+                }
+            } else {
+                gastosFijos.push({ id: Date.now(), name, amount });
+            }
+            guardarCambiosLocales();
+            cerrarModal('modal-fijo');
+            renderGastosFijos();
+        }
+
+        function eliminarFijo() {
+            if (fijoEditandoId && confirm('¿Eliminar gasto fijo de la lista general?')) {
+                gastosFijos = gastosFijos.filter(g => g.id !== fijoEditandoId);
+                guardarCambiosLocales();
+                cerrarModal('modal-fijo');
+                renderGastosFijos();
+            }
+        }
+
+        function renderMimito() {
+            const selectedMonth = document.getElementById('mimito-month-select').value || '2026-10';
+            const gfmList = document.getElementById('gfm-list');
+            gfmList.innerHTML = '';
+            let totalGFM = 0;
+
+            gastosFijosMimito.forEach(item => {
+                const montoActual = getMontoGFMEnMes(item.id, selectedMonth);
+                const keyOverride = `${selectedMonth}-${item.id}`;
+                const hasOverride = overridesGFM[keyOverride] !== undefined;
+                const isAnulado = hasOverride && overridesGFM[keyOverride] === 0;
+
+                totalGFM += montoActual;
+
+                let badgeHtml = '';
+                if (isAnulado) badgeHtml = '<span class="badge-anulado">Anulado este mes</span>';
+                else if (hasOverride) badgeHtml = '<span class="badge-modificado">Modificado este mes</span>';
+
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                if (isAnulado) card.style.opacity = '0.6';
+
+                card.innerHTML = `
+                    <div class="item-info">
+                        <span class="item-name" style="${isAnulado ? 'text-decoration: line-through;' : ''}">${item.name}</span>
+                        <span class="item-sub">Gasto Fijo Compartido ${badgeHtml}</span>
+                    </div>
+                    <div class="item-actions">
+                        <span style="font-weight:700; margin-right: 6px;">$${montoActual.toLocaleString('es-UY')}</span>
+                        <button class="btn-action" onclick="abrirModalEditarGFM(${item.id})">✏️</button>
+                    </div>
+                `;
+                gfmList.appendChild(card);
+            });
+
+            const mimitoList = document.getElementById('mimito-list');
+            mimitoList.innerHTML = '';
+            let pagadoPorYo = 0, pagadoPorMimito = 0;
+
+            gastosMimito.forEach(item => {
+                const [sYear, sMonth] = item.startMonth.split('-').map(Number);
+                const [qYear, qMonth] = selectedMonth.split('-').map(Number);
+                const diffMonths = (qYear - sYear) * 12 + (qMonth - sMonth);
+
+                if (diffMonths >= 0 && diffMonths < item.cuotas) {
+                    const cuotaMonto = item.totalAmount / item.cuotas;
+                    const numCuota = diffMonths + 1;
+                    if (item.payer === 'YO') pagadoPorYo += cuotaMonto;
+                    else pagadoPorMimito += cuotaMonto;
+
+                    const card = document.createElement('div');
+                    card.className = 'item-card';
+                    card.innerHTML = `
+                        <div class="item-info">
+                            <span class="item-name">${item.name}</span>
+                            <span class="item-sub"><span class="${item.payer === 'YO' ? 'badge-payer-yo' : 'badge-payer-mimito'}">Pagó: ${item.payer}</span> $${cuotaMonto.toLocaleString('es-UY', {maximumFractionDigits:0})} / mes ${item.cuotas > 1 ? `<span class="badge-cuota">Cuota ${numCuota}/${item.cuotas}</span>` : ''}</span>
+                        </div>
+                        <div class="item-actions">
+                            <button class="btn-action" onclick="abrirModalEditarMimito(${item.id})">✏️</button>
+                            <button class="btn-action btn-danger" onclick="eliminarMimitoDirecto(${item.id})">🗑️</button>
+                        </div>
+                    `;
+                    mimitoList.appendChild(card);
+                }
+            });
+
+            const balanceNeto = totalGFM + pagadoPorYo - pagadoPorMimito;
+            document.getElementById('mimito-gfm-total').innerText = `$${totalGFM.toLocaleString('es-UY')}`;
+            document.getElementById('mimito-paid-yo').innerText = `$${pagadoPorYo.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('mimito-paid-mimito').innerText = `$${pagadoPorMimito.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+
+            const balanceAmountEl = document.getElementById('mimito-balance-amount');
+            const balanceTextEl = document.getElementById('mimito-balance-text');
+
+            if (balanceNeto >= 0) {
+                balanceAmountEl.innerText = `$${balanceNeto.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+                balanceAmountEl.style.color = 'var(--accent-green)';
+                balanceTextEl.innerText = `MIMITO DEBE ABONARTE $${balanceNeto.toLocaleString('es-UY', {maximumFractionDigits:0})} a fin de mes.`;
+            } else {
+                balanceAmountEl.innerText = `$${Math.abs(balanceNeto).toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+                balanceAmountEl.style.color = 'var(--accent-red)';
+                balanceTextEl.innerText = `DEBES ABONARLE $${Math.abs(balanceNeto).toLocaleString('es-UY', {maximumFractionDigits:0})} a Mimito a fin de mes.`;
+            }
+        }
+
+        function abrirModalEditarGFM(id) {
+            gfmEditandoId = id;
+            const selectedMonth = document.getElementById('mimito-month-select').value || '2026-10';
+            const item = gastosFijosMimito.find(g => g.id === id);
+            const montoActual = getMontoGFMEnMes(id, selectedMonth);
+
+            document.getElementById('modal-gfm-title').innerText = 'Editar GFX Mimito';
+            document.getElementById('edit-gfm-name').value = item.name;
+            document.getElementById('edit-gfm-amount').value = montoActual;
+            document.getElementById('gfm-scope-group').style.display = 'block';
+            document.getElementById('btn-eliminar-gfm').style.display = 'block';
+            document.getElementById('modal-gfm').style.display = 'flex';
+        }
+
+        function guardarGFM() {
+            const name = document.getElementById('edit-gfm-name').value.trim();
+            const amount = parseFloat(document.getElementById('edit-gfm-amount').value);
+            const selectedMonth = document.getElementById('mimito-month-select').value || '2026-10';
+            if (!name || isNaN(amount)) return;
+
+            if (gfmEditandoId) {
+                const scope = document.getElementById('edit-gfm-scope').value;
+                if (scope === 'MES') {
+                    const key = `${selectedMonth}-${gfmEditandoId}`;
+                    overridesGFM[key] = amount;
+                } else {
+                    const item = gastosFijosMimito.find(g => g.id === gfmEditandoId);
+                    item.name = name; item.amount = amount;
+                }
+            }
+            guardarCambiosLocales();
+            cerrarModal('modal-gfm');
+            renderMimito();
+        }
+
+        function eliminarGFM() {
+            if (gfmEditandoId && confirm('¿Eliminar gasto fijo de Mimito?')) {
+                gastosFijosMimito = gastosFijosMimito.filter(g => g.id !== gfmEditandoId);
+                guardarCambiosLocales();
+                cerrarModal('modal-gfm');
+                renderMimito();
+            }
+        }
+
+        function renderVariables() {
+            const selectedMonth = document.getElementById('var-month-select').value || '2026-10';
+            const list = document.getElementById('variables-list');
+            list.innerHTML = '';
+            let totalMes = 0, pagadoMes = 0;
+
+            gastosVariables.forEach(item => {
+                const [sYear, sMonth] = item.startMonth.split('-').map(Number);
+                const [qYear, qMonth] = selectedMonth.split('-').map(Number);
+                const diffMonths = (qYear - sYear) * 12 + (qMonth - sMonth);
+
+                if (diffMonths >= 0 && diffMonths < item.cuotas) {
+                    const cuotaMonto = item.totalAmount / item.cuotas;
+                    const numCuota = diffMonths + 1;
+                    const isPaid = item.paidMonths && item.paidMonths.includes(`${selectedMonth}-${item.id}`);
+
+                    totalMes += cuotaMonto;
+                    if (isPaid) pagadoMes += cuotaMonto;
+
+                    const card = document.createElement('div');
+                    card.className = 'item-card';
+                    card.innerHTML = `
+                        <div class="item-info">
+                            <span class="item-name">${item.name}</span>
+                            <span class="item-sub">$${cuotaMonto.toLocaleString('es-UY', {maximumFractionDigits:0})} / mes ${item.cuotas > 1 ? `<span class="badge-cuota">Cuota ${numCuota}/${item.cuotas}</span>` : ''}</span>
+                        </div>
+                        <div class="item-actions">
+                            <button class="btn-action" onclick="abrirModalEditarVariable(${item.id})">✏️</button>
+                            <label class="switch"><input type="checkbox" ${isPaid ? 'checked' : ''} onchange="togglePagoVariable(${item.id}, '${selectedMonth}')"><span class="slider"></span></label>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                }
+            });
+
+            document.getElementById('var-total-amount').innerText = `$${totalMes.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('var-paid-text').innerText = `Concretado: $${pagadoMes.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('var-pending-text').innerText = `Pendiente: $${(totalMes - pagadoMes).toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('var-progress-fill').style.width = `${totalMes > 0 ? (pagadoMes/totalMes)*100 : 0}%`;
+        }
+
+        function togglePagoVariable(id, month) {
+            const item = gastosVariables.find(g => g.id === id);
+            if (item) {
+                if (!item.paidMonths) item.paidMonths = [];
+                const key = `${month}-${id}`;
+                if (item.paidMonths.includes(key)) item.paidMonths = item.paidMonths.filter(k => k !== key);
+                else item.paidMonths.push(key);
+                guardarCambiosLocales();
+                renderVariables();
+            }
+        }
+
+        function abrirModalNuevoVariable() {
+            varEditandoId = null;
+            document.getElementById('modal-var-title').innerText = 'Planificar Gasto Variable';
+            document.getElementById('var-name').value = '';
+            document.getElementById('var-amount').value = '';
+            document.getElementById('var-start-month').value = '2026-10';
+            document.getElementById('var-cuotas').value = '1';
+            document.getElementById('btn-eliminar-var').style.display = 'none';
+            document.getElementById('modal-variable').style.display = 'flex';
+        }
+
+        function abrirModalEditarVariable(id) {
+            varEditandoId = id;
+            const item = gastosVariables.find(g => g.id === id);
+            document.getElementById('modal-var-title').innerText = 'Editar Planificación';
+            document.getElementById('var-name').value = item.name;
+            document.getElementById('var-amount').value = item.totalAmount;
+            document.getElementById('var-start-month').value = item.startMonth;
+            document.getElementById('var-cuotas').value = item.cuotas;
+            document.getElementById('btn-eliminar-var').style.display = 'block';
+            document.getElementById('modal-variable').style.display = 'flex';
+        }
+
+        function guardarVariable() {
+            const name = document.getElementById('var-name').value.trim();
+            const totalAmount = parseFloat(document.getElementById('var-amount').value);
+            const startMonth = document.getElementById('var-start-month').value;
+            const cuotas = parseInt(document.getElementById('var-cuotas').value) || 1;
+            if (!name || isNaN(totalAmount)) return;
+
+            if (varEditandoId) {
+                const item = gastosVariables.find(g => g.id === varEditandoId);
+                item.name = name; item.totalAmount = totalAmount; item.startMonth = startMonth; item.cuotas = cuotas;
+            } else {
+                gastosVariables.push({ id: Date.now(), name, totalAmount, startMonth, cuotas, paidMonths: [] });
+            }
+            guardarCambiosLocales();
+            cerrarModal('modal-variable');
+            renderVariables();
+        }
+
+        function eliminarVariable() {
+            if (varEditandoId && confirm('¿Eliminar planificación?')) {
+                gastosVariables = gastosVariables.filter(g => g.id !== varEditandoId);
+                guardarCambiosLocales();
+                cerrarModal('modal-variable');
+                renderVariables();
+            }
+        }
+
+        function renderTarjetas() {
+            const selectedMonth = document.getElementById('card-month-select').value || '2026-10';
+            const list = document.getElementById('tarjetas-list');
+            list.innerHTML = '';
+            let totals = { OCA: 0, BBVA: 0, Scotiabank: 0, Passcard: 0 };
+            let totalConsolidado = 0;
+
+            comprasTarjetas.forEach(item => {
+                const [sYear, sMonth] = item.startMonth.split('-').map(Number);
+                const [qYear, qMonth] = selectedMonth.split('-').map(Number);
+                const diffMonths = (qYear - sYear) * 12 + (qMonth - sMonth);
+
+                if (diffMonths >= 0 && diffMonths < item.cuotas) {
+                    const cuotaMonto = item.totalAmount / item.cuotas;
+                    const numCuota = diffMonths + 1;
+                    if (totals[item.card] !== undefined) totals[item.card] += cuotaMonto;
+                    totalConsolidado += cuotaMonto;
+
+                    if (tarjetaFiltroSeleccionada === 'Todas' || tarjetaFiltroSeleccionada === item.card) {
+                        const card = document.createElement('div');
+                        card.className = 'item-card';
+                        card.innerHTML = `
+                            <div class="item-info">
+                                <span class="item-name">${item.name}</span>
+                                <span class="item-sub"><span class="badge-card">${item.card}</span> $${cuotaMonto.toLocaleString('es-UY', {maximumFractionDigits:0})} / mes ${item.cuotas > 1 ? `<span class="badge-cuota">Cuota ${numCuota}/${item.cuotas}</span>` : ''}</span>
+                            </div>
+                            <div class="item-actions">
+                                <button class="btn-action" onclick="abrirModalEditarCompraTarjeta(${item.id})">✏️</button>
+                                <button class="btn-action btn-danger" onclick="eliminarCompraDirecta(${item.id})">🗑️</button>
+                            </div>
+                        `;
+                        list.appendChild(card);
+                    }
+                }
+            });
+
+            document.getElementById('card-total-amount').innerText = `$${totalConsolidado.toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('amount-card-oca').innerText = `$${(totals['OCA'] || 0).toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('amount-card-bbva').innerText = `$${(totals['BBVA'] || 0).toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('amount-card-scotiabank').innerText = `$${(totals['Scotiabank'] || 0).toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('amount-card-passcard').innerText = `$${(totals['Passcard'] || 0).toLocaleString('es-UY', {maximumFractionDigits:0})}`;
+            document.getElementById('tarjetas-mov-title').innerText = `Movimientos (${tarjetaFiltroSeleccionada})`;
+        }
+
+        function filtrarPorTarjeta(nombreTarjeta) {
+            tarjetaFiltroSeleccionada = nombreTarjeta;
+            document.querySelectorAll('.card-box').forEach(box => box.classList.remove('active'));
+            const consolidatedBox = document.getElementById('card-consolidated-box');
+            if (nombreTarjeta === 'Todas') consolidatedBox.style.borderColor = 'var(--accent-blue)';
+            else consolidatedBox.style.borderColor = 'var(--border-color)';
+
+            if (nombreTarjeta === 'OCA') document.getElementById('filter-oca').classList.add('active');
+            else if (nombreTarjeta === 'BBVA') document.getElementById('filter-bbva').classList.add('active');
+            else if (nombreTarjeta === 'Scotiabank') document.getElementById('filter-scotiabank').classList.add('active');
+            else if (nombreTarjeta === 'Passcard') document.getElementById('filter-passcard').classList.add('active');
+            renderTarjetas();
+        }
+
+        function abrirModalNuevaTarjetaCompra() {
+            cardEditandoId = null;
+            document.getElementById('modal-card-title').innerText = 'Nueva Compra con Tarjeta';
+            document.getElementById('card-select').value = 'OCA';
+            document.getElementById('card-purchase-name').value = '';
+            document.getElementById('card-purchase-amount').value = '';
+            document.getElementById('card-start-month').value = '2026-10';
+            document.getElementById('card-cuotas').value = '1';
+            document.getElementById('btn-eliminar-card').style.display = 'none';
+            document.getElementById('modal-tarjeta').style.display = 'flex';
+        }
+
+        function abrirModalEditarCompraTarjeta(id) {
+            cardEditandoId = id;
+            const item = comprasTarjetas.find(c => c.id === id);
+            document.getElementById('modal-card-title').innerText = 'Editar Compra';
+            document.getElementById('card-select').value = item.card;
+            document.getElementById('card-purchase-name').value = item.name;
+            document.getElementById('card-purchase-amount').value = item.totalAmount;
+            document.getElementById('card-start-month').value = item.startMonth;
+            document.getElementById('card-cuotas').value = item.cuotas;
+            document.getElementById('btn-eliminar-card').style.display = 'block';
+            document.getElementById('modal-tarjeta').style.display = 'flex';
+        }
+
+        function guardarCompraTarjeta() {
+            const card = document.getElementById('card-select').value;
+            const name = document.getElementById('card-purchase-name').value.trim();
+            const totalAmount = parseFloat(document.getElementById('card-purchase-amount').value);
+            const startMonth = document.getElementById('card-start-month').value;
+            const cuotas = parseInt(document.getElementById('card-cuotas').value) || 1;
+            if (!name || isNaN(totalAmount)) return;
+
+            if (cardEditandoId) {
+                const item = comprasTarjetas.find(c => c.id === cardEditandoId);
+                item.card = card; item.name = name; item.totalAmount = totalAmount; item.startMonth = startMonth; item.cuotas = cuotas;
+            } else {
+                comprasTarjetas.push({ id: Date.now(), card, name, totalAmount, startMonth, cuotas });
+            }
+            guardarCambiosLocales();
+            cerrarModal('modal-tarjeta');
+            renderTarjetas();
+        }
+
+        function eliminarCompraTarjeta() {
+            if (cardEditandoId && confirm('¿Eliminar compra?')) {
+                comprasTarjetas = comprasTarjetas.filter(c => c.id !== cardEditandoId);
+                guardarCambiosLocales();
+                cerrarModal('modal-tarjeta');
+                renderTarjetas();
+            }
+        }
+
+        function eliminarCompraDirecta(id) {
+            if (confirm('¿Eliminar movimiento?')) {
+                comprasTarjetas = comprasTarjetas.filter(c => c.id !== id);
+                guardarCambiosLocales();
+                renderTarjetas();
+            }
+        }
+
+        function abrirModalNuevoMimito() {
+            mimitoEditandoId = null;
+            document.getElementById('modal-mimito-title').innerText = 'Nuevo Gasto Compartido';
+            document.getElementById('mimito-name').value = '';
+            document.getElementById('mimito-amount').value = '';
+            document.getElementById('mimito-payer').value = 'YO';
+            document.getElementById('mimito-start-month').value = '2026-10';
+            document.getElementById('mimito-cuotas').value = '1';
+            document.getElementById('btn-eliminar-mimito').style.display = 'none';
+            document.getElementById('modal-mimito').style.display = 'flex';
+        }
+
+        function abrirModalEditarMimito(id) {
+            mimitoEditandoId = id;
+            const item = gastosMimito.find(m => m.id === id);
+            document.getElementById('modal-mimito-title').innerText = 'Editar Gasto';
+            document.getElementById('mimito-name').value = item.name;
+            document.getElementById('mimito-amount').value = item.totalAmount;
+            document.getElementById('mimito-payer').value = item.payer;
+            document.getElementById('mimito-start-month').value = item.startMonth;
+            document.getElementById('mimito-cuotas').value = item.cuotas;
+            document.getElementById('btn-eliminar-mimito').style.display = 'block';
+            document.getElementById('modal-mimito').style.display = 'flex';
+        }
+
+        function guardarGastoMimito() {
+            const name = document.getElementById('mimito-name').value.trim();
+            const totalAmount = parseFloat(document.getElementById('mimito-amount').value);
+            const payer = document.getElementById('mimito-payer').value;
+            const startMonth = document.getElementById('mimito-start-month').value;
+            const cuotas = parseInt(document.getElementById('mimito-cuotas').value) || 1;
+            if (!name || isNaN(totalAmount)) return;
+
+            if (mimitoEditandoId) {
+                const item = gastosMimito.find(m => m.id === mimitoEditandoId);
+                item.name = name; item.totalAmount = totalAmount; item.payer = payer; item.startMonth = startMonth; item.cuotas = cuotas;
+            } else {
+                gastosMimito.push({ id: Date.now(), name, totalAmount, payer, startMonth, cuotas });
+            }
+            guardarCambiosLocales();
+            cerrarModal('modal-mimito');
+            renderMimito();
+        }
+
+        function eliminarGastoMimito() {
+            if (mimitoEditandoId && confirm('¿Eliminar gasto?')) {
+                gastosMimito = gastosMimito.filter(m => m.id !== mimitoEditandoId);
+                guardarCambiosLocales();
+                cerrarModal('modal-mimito');
+                renderMimito();
+            }
+        }
+
+        function eliminarMimitoDirecto(id) {
+            if (confirm('¿Eliminar gasto?')) {
+                gastosMimito = gastosMimito.filter(m => m.id !== id);
+                guardarCambiosLocales();
+                renderMimito();
+            }
+        }
+
+        function renderAhorro() {
+            const selectedMonth = document.getElementById('ahorro-month-select').value || 'TODOS';
+            const list = document.getElementById('ahorro-list');
+            list.innerHTML = '';
+            let totalAhorrado = 0;
+
+            registrosAhorro.forEach(item => {
+                const itemMonth = item.date ? item.date.substring(0, 7) : '';
+                if (selectedMonth === 'TODOS' || selectedMonth === itemMonth) {
+                    totalAhorrado += item.amount;
+                    const card = document.createElement('div');
+                    card.className = 'item-card';
+                    card.innerHTML = `
+                        <div class="item-info"><span class="item-name">${item.name}</span><span class="item-sub"><span class="badge-destino">${item.destino}</span> ${item.date}</span></div>
+                        <div class="item-actions">
+                            <span style="font-weight:700; color: var(--accent-purple);">$${item.amount.toLocaleString('es-UY')}</span>
+                            <button class="btn-action" onclick="abrirModalEditarAhorro(${item.id})">✏️</button>
+                            <button class="btn-action btn-danger" onclick="eliminarAhorroDirecto(${item.id})">🗑️</button>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                }
+            });
+
+            document.getElementById('ahorro-total-amount').innerText = `$${totalAhorrado.toLocaleString('es-UY')}`;
+            document.getElementById('ahorro-subtext').innerText = selectedMonth === 'TODOS' ? 'Suma total de aportes acumulados.' : `Total aportado en ${selectedMonth}.`;
+        }
+
+        function abrirModalNuevoAhorro() {
+            ahorroEditandoId = null;
+            document.getElementById('modal-ahorro-title').innerText = 'Nuevo Aporte de Ahorro';
+            document.getElementById('ahorro-name').value = '';
+            document.getElementById('ahorro-amount').value = '';
+            document.getElementById('ahorro-date').value = '2026-10-28';
+            document.getElementById('ahorro-destino').value = 'Itaú Fondo Liquidez';
+            document.getElementById('btn-eliminar-ahorro').style.display = 'none';
+            document.getElementById('modal-ahorro').style.display = 'flex';
+        }
+
+        function abrirModalEditarAhorro(id) {
+            ahorroEditandoId = id;
+            const item = registrosAhorro.find(a => a.id === id);
+            document.getElementById('modal-ahorro-title').innerText = 'Editar Aporte';
+            document.getElementById('ahorro-name').value = item.name;
+            document.getElementById('ahorro-amount').value = item.amount;
+            document.getElementById('ahorro-date').value = item.date;
+            document.getElementById('ahorro-destino').value = item.destino;
+            document.getElementById('btn-eliminar-ahorro').style.display = 'block';
+            document.getElementById('modal-ahorro').style.display = 'flex';
+        }
+
+        function guardarAhorro() {
+            const name = document.getElementById('ahorro-name').value.trim();
+            const amount = parseFloat(document.getElementById('ahorro-amount').value);
+            const date = document.getElementById('ahorro-date').value;
+            const destino = document.getElementById('ahorro-destino').value;
+            if (!name || isNaN(amount) || !date) return;
+
+            if (ahorroEditandoId) {
+                const item = registrosAhorro.find(a => a.id === ahorroEditandoId);
+                item.name = name; item.amount = amount; item.date = date; item.destino = destino;
+            } else {
+                registrosAhorro.push({ id: Date.now(), name, amount, date, destino });
+            }
+            guardarCambiosLocales();
+            cerrarModal('modal-ahorro');
+            renderAhorro();
+        }
+
+        function eliminarAhorro() {
+            if (ahorroEditandoId && confirm('¿Eliminar aporte?')) {
+                registrosAhorro = registrosAhorro.filter(a => a.id !== ahorroEditandoId);
+                guardarCambiosLocales();
+                cerrarModal('modal-ahorro');
+                renderAhorro();
+            }
+        }
+
+        function eliminarAhorroDirecto(id) {
+            if (confirm('¿Eliminar aporte?')) {
+                registrosAhorro = registrosAhorro.filter(a => a.id !== id);
+                guardarCambiosLocales();
+                renderAhorro();
+            }
+        }
+
+        function renderConsumo() {
+            const selectedMonth = document.getElementById('consumo-month-select').value || '2026-10';
+            const list = document.getElementById('consumo-list');
+            list.innerHTML = '';
+            let totalGastado = 0;
+
+            registrosConsumo.forEach(item => {
+                const itemMonth = item.date ? item.date.substring(0, 7) : '';
+                if (selectedMonth === itemMonth) {
+                    totalGastado += item.amount;
+                    const card = document.createElement('div');
+                    card.className = 'item-card';
+                    card.innerHTML = `
+                        <div class="item-info"><span class="item-name">${item.name}</span><span class="item-sub"><span class="badge-consumo">Bolsillo</span> ${item.date}</span></div>
+                        <div class="item-actions">
+                            <span style="font-weight:700; color: var(--accent-teal);">$${item.amount.toLocaleString('es-UY')}</span>
+                            <button class="btn-action" onclick="abrirModalEditarConsumo(${item.id})">✏️</button>
+                            <button class="btn-action btn-danger" onclick="eliminarConsumoDirecto(${item.id})">🗑️</button>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                }
+            });
+
+            const consumoFijoMes = fondosConsumoMensuales[selectedMonth] !== undefined ? fondosConsumoMensuales[selectedMonth] : 10000;
+            const restante = consumoFijoMes - totalGastado;
+            const porcentaje = consumoFijoMes > 0 ? Math.min((totalGastado / consumoFijoMes) * 100, 100) : 0;
+
+            document.getElementById('consumo-asignado-text').innerText = `Fijo Mes: $${consumoFijoMes.toLocaleString('es-UY')}`;
+            document.getElementById('consumo-gastado-text').innerText = `Gastado: $${totalGastado.toLocaleString('es-UY')}`;
+            
+            const restanteEl = document.getElementById('consumo-restante-amount');
+            restanteEl.innerText = `$${restante.toLocaleString('es-UY')}`;
+            
+            if (restante < 0) {
+                restanteEl.style.color = 'var(--accent-red)';
+                document.getElementById('consumo-progress-fill').style.backgroundColor = 'var(--accent-red)';
+            } else {
+                restanteEl.style.color = 'var(--accent-teal)';
+                document.getElementById('consumo-progress-fill').style.backgroundColor = 'var(--accent-teal)';
+            }
+            document.getElementById('consumo-progress-fill').style.width = `${porcentaje}%`;
+        }
+
+        function editarFijoConsumoMes() {
+            const selectedMonth = document.getElementById('consumo-month-select').value || '2026-10';
+            const actual = fondosConsumoMensuales[selectedMonth] !== undefined ? fondosConsumoMensuales[selectedMonth] : 10000;
+            const nuevoMonto = prompt(`Ingresa el fijo de consumo para ${selectedMonth} ($):`, actual);
+            
+            if (nuevoMonto !== null && !isNaN(nuevoMonto) && nuevoMonto !== "") {
+                fondosConsumoMensuales[selectedMonth] = parseFloat(nuevoMonto);
+                guardarCambiosLocales();
+                renderConsumo();
+            }
+        }
+
+        function abrirModalNuevoConsumo() {
+            consumoEditandoId = null;
+            document.getElementById('modal-consumo-title').innerText = 'Registrar Consumo Diario';
+            document.getElementById('consumo-name').value = '';
+            document.getElementById('consumo-amount').value = '';
+            document.getElementById('consumo-date').value = '2026-10-28';
+            document.getElementById('btn-eliminar-consumo').style.display = 'none';
+            document.getElementById('modal-consumo').style.display = 'flex';
+        }
+
+        function abrirModalEditarConsumo(id) {
+            consumoEditandoId = id;
+            const item = registrosConsumo.find(c => c.id === id);
+            document.getElementById('modal-consumo-title').innerText = 'Editar Consumo';
+            document.getElementById('consumo-name').value = item.name;
+            document.getElementById('consumo-amount').value = item.amount;
+            document.getElementById('consumo-date').value = item.date;
+            document.getElementById('btn-eliminar-consumo').style.display = 'block';
+            document.getElementById('modal-consumo').style.display = 'flex';
+        }
+
+        function guardarConsumo() {
+            const name = document.getElementById('consumo-name').value.trim();
+            const amount = parseFloat(document.getElementById('consumo-amount').value);
+            const date = document.getElementById('consumo-date').value;
+            if (!name || isNaN(amount) || !date) return;
+
+            if (consumoEditandoId) {
+                const item = registrosConsumo.find(c => c.id === consumoEditandoId);
+                item.name = name; item.amount = amount; item.date = date;
+            } else {
+                registrosConsumo.push({ id: Date.now(), name, amount, date });
+            }
+            guardarCambiosLocales();
+            cerrarModal('modal-consumo');
+            renderConsumo();
+        }
+
+        function eliminarConsumo() {
+            if (consumoEditandoId && confirm('¿Eliminar consumo?')) {
+                registrosConsumo = registrosConsumo.filter(c => c.id !== consumoEditandoId);
+                guardarCambiosLocales();
+                cerrarModal('modal-consumo');
+                renderConsumo();
+            }
+        }
+
+        function eliminarConsumoDirecto(id) {
+            if (confirm('¿Eliminar consumo?')) {
+                registrosConsumo = registrosConsumo.filter(c => c.id !== id);
+                guardarCambiosLocales();
+                renderConsumo();
+            }
+        }
+
+        function cerrarModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function exportarBackup() {
+            const backup = {
+                sueldosMensuales, gastosFijos, overridesFijos, estadoPagosFijos,
+                gastosFijosMimito, overridesGFM, gastosVariables, comprasTarjetas,
+                gastosMimito, registrosAhorro, fondosConsumoMensuales, registrosConsumo
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `Finanzas_Backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importarBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported && imported.gastosFijos) {
+                        sueldosMensuales = imported.sueldosMensuales || {};
+                        gastosFijos = imported.gastosFijos || [];
+                        overridesFijos = imported.overridesFijos || {};
+                        estadoPagosFijos = imported.estadoPagosFijos || {};
+                        gastosFijosMimito = imported.gastosFijosMimito || [];
+                        overridesGFM = imported.overridesGFM || {};
+                        gastosVariables = imported.gastosVariables || [];
+                        comprasTarjetas = imported.comprasTarjetas || [];
+                        gastosMimito = imported.gastosMimito || [];
+                        registrosAhorro = imported.registrosAhorro || [];
+                        fondosConsumoMensuales = imported.fondosConsumoMensuales || {};
+                        registrosConsumo = imported.registrosConsumo || [];
+                        guardarCambiosLocales();
+                        alert('¡Datos importados y sincronizados en la nube correctamente!');
+                        renderDashboard();
+                    } else {
+                        alert('El archivo no tiene el formato correcto.');
+                    }
+                } catch(err) {
+                    alert('Error al leer el archivo JSON.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Inicializar interfaz y conexión a Firebase
+        inicializarDropdownsMeses();
+        inicializarDatos();
+    </script>
+</body>
+</html>
